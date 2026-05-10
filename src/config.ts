@@ -10,7 +10,7 @@ export const config = new Conf<ConfigSchema>({
   projectName: 'pushify-cli',
   defaults: {
     apiKey: null,
-    apiUrl: 'http://localhost:4000/api/v1',
+    apiUrl: 'https://api.pushify.dev/api/v1',
     defaultProject: null,
   },
 });
