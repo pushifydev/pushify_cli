@@ -93,6 +93,27 @@ class ApiClient {
     return projects.find(p => p.slug === slug || p.name.toLowerCase() === slug.toLowerCase()) || null;
   }
 
+  // Environment variables
+  async getEnvVars(projectId: string): Promise<Array<{ key: string; value: string }>> {
+    const response = await this.request<{ data: Array<{ key: string; value: string }> }>(
+      'GET',
+      `/projects/${projectId}/env`
+    );
+    return response.data;
+  }
+
+  async bulkSetEnvVars(
+    projectId: string,
+    variables: Array<{ key: string; value: string }>
+  ): Promise<number> {
+    const response = await this.request<{ data: Array<unknown> }>(
+      'POST',
+      `/projects/${projectId}/env/bulk`,
+      { variables }
+    );
+    return response.data.length;
+  }
+
   // Deployments
   async listDeployments(projectId: string, limit = 10): Promise<Deployment[]> {
     const response = await this.request<{ data: Deployment[] }>(

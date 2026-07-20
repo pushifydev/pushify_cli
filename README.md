@@ -94,7 +94,34 @@ pushify logs <deployment-id> --follow
 
 Instead of using `pushify login`, you can set environment variables:
 
+```
+
+### Environment variables
+
+Sync your project's environment variables with a local `.env` file:
+
 ```bash
+# Download project env vars into .env (refuses to overwrite without --force)
+pushify env pull my-project
+
+# Preview what would be pushed, then apply
+pushify env push my-project
+pushify env push my-project --yes
+
+# Use a different file
+pushify env pull my-project --file .env.production --force
+```
+
+`env push` upserts: existing keys are overwritten, keys not present in the file are kept.
+The pulled file is written with `chmod 600` — keep it in `.gitignore`.
+
+### Open in browser
+
+```bash
+# Open the project's primary domain
+pushify open my-project
+```
+bash
 export PUSHIFY_API_KEY=pk_live_YOUR_API_KEY
 export PUSHIFY_API_URL=https://api.pushify.dev/api/v1  # optional
 ```

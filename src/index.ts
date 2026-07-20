@@ -9,6 +9,7 @@ import { projectsCommand } from './commands/projects.js';
 import { deployCommand } from './commands/deploy.js';
 import { logsCommand } from './commands/logs.js';
 import { statusCommand } from './commands/status.js';
+import { envPullCommand, envPushCommand, openCommand } from './commands/env.js';
 
 const program = new Command();
 
@@ -64,6 +65,28 @@ program
   .description('View deployment logs')
   .option('-f, --follow', 'Follow logs in real-time')
   .action(logsCommand);
+
+// Env commands — .env sync with the dashboard
+const env = program.command('env').description('Sync environment variables with a local .env file');
+env
+  .command('pull [project]')
+  .description('Download project env vars into a local .env file')
+  .option('-f, --file <file>', 'Target file (default: .env)')
+  .option('--force', 'Overwrite the file if it exists')
+  .action(envPullCommand);
+env
+  .command('push [project]')
+  .description('Upsert variables from a local .env file to the project')
+  .option('-f, --file <file>', 'Source file (default: .env)')
+  .option('-y, --yes', 'Apply without confirmation')
+  .action(envPushCommand);
+
+// Open command
+program
+  .command('open [project]')
+  .alias('o')
+  .description("Open the project's primary domain in your browser")
+  .action(openCommand);
 
 // Status command
 program
