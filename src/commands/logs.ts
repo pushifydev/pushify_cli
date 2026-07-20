@@ -1,46 +1,57 @@
 import chalk from 'chalk';
 import ora from 'ora';
 import { api } from '../api.js';
-import { isAuthenticated } from '../config.js';
+import { requireAuth, resolveProject } from '../resolve.js';
 
 interface LogsOptions {
   follow?: boolean;
 }
 
-export async function logsCommand(deploymentId: string, options: LogsOptions): Promise<void> {
-  if (!isAuthenticated()) {
-    console.log(chalk.red('Not authenticated. Run `pushify login` first.'));
-    process.exit(1);
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export async function logsCommand(target: string | undefined, options: LogsOptions): Promise<void> {
+  requireAuth();
+
+  let foundProjectId: string;
+  let deploymentId: string;
+
+  if (target && UUID_PATTERN.test(target)) {
+    // Explicit deployment ID — locate its project
+    const spinner = ora('Locating deployment...').start();
+    const projects = await api.listProjects();
+    let located: string | null = null;
+    for (const project of projects) {
+      try {
+        await api.getDeployment(project.id, target);
+        located = project.id;
+        break;
+      } catch {
+        // not in this project
+      }
+    }
+    if (!located) {
+      spinner.fail('Deployment not found');
+      process.exit(1);
+    }
+    spinner.stop();
+    foundProjectId = located;
+    deploymentId = target;
+  } else {
+    // Project (or linked directory) — use its latest deployment
+    const project = await resolveProject(target);
+    const [latest] = await api.listDeployments(project.id, 1);
+    if (!latest) {
+      console.log(chalk.yellow(`${project.name} has no deployments yet.`));
+      process.exit(1);
+    }
+    foundProjectId = project.id;
+    deploymentId = latest.id;
+    console.log(chalk.gray(`Latest deployment of ${project.name}: ${deploymentId}`));
   }
 
-  // First, we need to find which project this deployment belongs to
   const spinner = ora('Fetching deployment logs...').start();
 
   try {
-    // Get all projects and find the deployment
-    const projects = await api.listProjects();
-
-    let foundProjectId: string | null = null;
-    let foundDeployment: any = null;
-
-    for (const project of projects) {
-      try {
-        const deployment = await api.getDeployment(project.id, deploymentId);
-        foundProjectId = project.id;
-        foundDeployment = deployment;
-        break;
-      } catch {
-        // Not found in this project, continue
-      }
-    }
-
-    if (!foundProjectId || !foundDeployment) {
-      spinner.fail('Deployment not found');
-      console.log(chalk.gray('Make sure the deployment ID is correct.'));
-      process.exit(1);
-    }
-
-    // Get logs
     const logsData = await api.getDeploymentLogs(foundProjectId, deploymentId);
     spinner.stop();
 

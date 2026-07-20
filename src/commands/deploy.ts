@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import ora from 'ora';
+import { requireAuth, resolveProject } from '../resolve.js';
 import { api, type Deployment } from '../api.js';
 import { isAuthenticated, config } from '../config.js';
 
@@ -9,68 +10,17 @@ interface DeployOptions {
 }
 
 export async function deployCommand(projectArg: string | undefined, options: DeployOptions): Promise<void> {
-  if (!isAuthenticated()) {
-    console.log(chalk.red('Not authenticated. Run `pushify login` first.'));
-    process.exit(1);
-  }
+  requireAuth();
 
-  // Resolve project
-  let projectId: string | null = null;
-  let projectName: string = '';
-
-  if (projectArg) {
-    // Try to find by slug or name
-    const spinner = ora('Finding project...').start();
-    try {
-      const project = await api.getProjectBySlug(projectArg);
-      if (project) {
-        projectId = project.id;
-        projectName = project.name;
-        spinner.stop();
-      } else {
-        // Maybe it's a project ID directly
-        try {
-          const projectById = await api.getProject(projectArg);
-          projectId = projectById.id;
-          projectName = projectById.name;
-          spinner.stop();
-        } catch {
-          spinner.fail(`Project not found: ${projectArg}`);
-          process.exit(1);
-        }
-      }
-    } catch (error) {
-      spinner.fail('Failed to find project');
-      if (error instanceof Error) {
-        console.log(chalk.red(`Error: ${error.message}`));
-      }
-      process.exit(1);
-    }
-  } else {
-    // Use default project or prompt
-    const defaultProject = config.get('defaultProject');
-    if (defaultProject) {
-      projectId = defaultProject;
-      const project = await api.getProject(defaultProject);
-      projectName = project.name;
-    } else {
-      console.log(chalk.red('No project specified.'));
-      console.log('');
-      console.log('Usage:');
-      console.log(`  ${chalk.cyan('pushify deploy <project-name>')}`);
-      console.log(`  ${chalk.cyan('pushify deploy my-app')}`);
-      console.log('');
-      console.log('Or list available projects:');
-      console.log(`  ${chalk.cyan('pushify projects')}`);
-      process.exit(1);
-    }
-  }
+  const resolved = await resolveProject(projectArg);
+  const projectId: string = resolved.id;
+  const projectName: string = resolved.name;
 
   // Create deployment
   const spinner = ora(`Triggering deployment for ${chalk.bold(projectName)}...`).start();
 
   try {
-    const deployment = await api.createDeployment(projectId!, {
+    const deployment = await api.createDeployment(projectId, {
       branch: options.branch,
     });
 

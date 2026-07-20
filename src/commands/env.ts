@@ -2,23 +2,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import chalk from 'chalk';
 import ora from 'ora';
 import { api } from '../api.js';
-import { isAuthenticated, config } from '../config.js';
-
-async function resolveProjectId(projectArg?: string): Promise<{ id: string; name: string }> {
-  if (projectArg) {
-    const bySlug = await api.getProjectBySlug(projectArg);
-    if (bySlug) return { id: bySlug.id, name: bySlug.name };
-    const byId = await api.getProject(projectArg);
-    return { id: byId.id, name: byId.name };
-  }
-  const defaultProject = config.get('defaultProject');
-  if (defaultProject) {
-    const project = await api.getProject(defaultProject);
-    return { id: project.id, name: project.name };
-  }
-  console.log(chalk.red('No project specified. Usage: pushify env pull <project>'));
-  process.exit(1);
-}
+import { requireAuth, resolveProject } from '../resolve.js';
 
 /** Parse a .env file into key/value pairs. Ignores comments and blank lines. */
 export function parseDotenv(content: string): Array<{ key: string; value: string }> {
@@ -58,17 +42,14 @@ export async function envPullCommand(
   projectArg: string | undefined,
   options: { file?: string; force?: boolean }
 ): Promise<void> {
-  if (!isAuthenticated()) {
-    console.log(chalk.red('Not authenticated. Run `pushify login` first.'));
-    process.exit(1);
-  }
+  requireAuth();
   const file = options.file || '.env';
   if (existsSync(file) && !options.force) {
     console.log(chalk.red(`${file} already exists. Use --force to overwrite.`));
     process.exit(1);
   }
 
-  const { id, name } = await resolveProjectId(projectArg);
+  const { id, name } = await resolveProject(projectArg);
   const spinner = ora(`Pulling env vars from ${name}...`).start();
   try {
     const vars = await api.getEnvVars(id);
@@ -86,10 +67,7 @@ export async function envPushCommand(
   projectArg: string | undefined,
   options: { file?: string; yes?: boolean }
 ): Promise<void> {
-  if (!isAuthenticated()) {
-    console.log(chalk.red('Not authenticated. Run `pushify login` first.'));
-    process.exit(1);
-  }
+  requireAuth();
   const file = options.file || '.env';
   if (!existsSync(file)) {
     console.log(chalk.red(`${file} not found.`));
@@ -101,7 +79,7 @@ export async function envPushCommand(
     process.exit(1);
   }
 
-  const { id, name } = await resolveProjectId(projectArg);
+  const { id, name } = await resolveProject(projectArg);
   console.log(
     `About to upsert ${chalk.bold(String(vars.length))} variable(s) from ${chalk.cyan(file)} to ${chalk.bold(name)}:`
   );
@@ -124,15 +102,11 @@ export async function envPushCommand(
 }
 
 export async function openCommand(projectArg: string | undefined): Promise<void> {
-  if (!isAuthenticated()) {
-    console.log(chalk.red('Not authenticated. Run `pushify login` first.'));
-    process.exit(1);
-  }
-  const { id, name } = await resolveProjectId(projectArg);
-  const project = await api.getProject(id);
+  requireAuth();
+  const project = await resolveProject(projectArg);
   const primary = project.domains?.find((d) => d.isPrimary) ?? project.domains?.[0];
   if (!primary) {
-    console.log(chalk.yellow(`${name} has no domain yet.`));
+    console.log(chalk.yellow(`${project.name} has no domain yet.`));
     process.exit(1);
   }
   const url = `https://${primary.domain}`;

@@ -1,42 +1,26 @@
 import chalk from 'chalk';
 import ora from 'ora';
+import { requireAuth, resolveProject, readLinkFile } from '../resolve.js';
 import { api, type Project, type Deployment } from '../api.js';
 import { isAuthenticated, config } from '../config.js';
 
 export async function statusCommand(projectArg?: string): Promise<void> {
-  if (!isAuthenticated()) {
-    console.log(chalk.red('Not authenticated. Run `pushify login` first.'));
-    process.exit(1);
-  }
+  requireAuth();
 
   const spinner = ora('Fetching status...').start();
 
   try {
     let project: Project | null = null;
 
-    if (projectArg) {
-      // Try to find by slug or name
-      project = await api.getProjectBySlug(projectArg);
-      if (!project) {
-        // Maybe it's a project ID directly
-        try {
-          project = await api.getProject(projectArg);
-        } catch {
-          spinner.fail(`Project not found: ${projectArg}`);
-          process.exit(1);
-        }
-      }
+    if (projectArg || readLinkFile() || config.get('defaultProject')) {
+      spinner.stop();
+      project = await resolveProject(projectArg);
+      spinner.start();
     } else {
-      // Use default project
-      const defaultProject = config.get('defaultProject');
-      if (defaultProject) {
-        project = await api.getProject(defaultProject);
-      } else {
-        // Show all projects status
-        spinner.stop();
-        await showAllProjectsStatus();
-        return;
-      }
+      // No target anywhere — show all projects
+      spinner.stop();
+      await showAllProjectsStatus();
+      return;
     }
 
     if (!project) {
