@@ -28,6 +28,21 @@ pushify deploy my-project
 
 ## Commands
 
+### Link a directory (recommended)
+
+Link your repo directory to a project once — every command then works without a project argument:
+
+```bash
+pushify link my-project     # writes .pushify (auto-added to .gitignore)
+pushify deploy --wait
+pushify logs -f             # follows the LATEST deployment of the linked project
+pushify env pull
+pushify open
+pushify unlink
+```
+
+Resolution order everywhere: explicit argument → `.pushify` in the directory (or any parent) → `pushify config` default project.
+
 ### Authentication
 
 ```bash
@@ -84,7 +99,9 @@ pushify status
 
 ```bash
 # View deployment logs
+# Logs of a specific deployment, or the latest deployment of a project
 pushify logs <deployment-id>
+pushify logs my-project -f
 
 # Follow logs in real-time
 pushify logs <deployment-id> --follow
