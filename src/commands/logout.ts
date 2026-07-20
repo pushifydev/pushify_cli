@@ -11,6 +11,9 @@ export async function logoutCommand(): Promise<void> {
 
   config.delete('apiKey');
   config.delete('defaultProject');
+  // Reset any custom API URL too, so the next login targets the default
+  // endpoint again instead of a stale self-hosted/dev address.
+  config.delete('apiUrl');
 
   console.log(chalk.green('✓ Successfully logged out'));
   console.log(chalk.gray('Your API key has been removed from local storage.'));

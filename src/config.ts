@@ -6,11 +6,13 @@ interface ConfigSchema {
   defaultProject: string | null;
 }
 
+export const DEFAULT_API_URL = 'https://api.pushify.dev/api/v1';
+
 export const config = new Conf<ConfigSchema>({
   projectName: 'pushify-cli',
   defaults: {
     apiKey: null,
-    apiUrl: 'https://api.pushify.dev/api/v1',
+    apiUrl: DEFAULT_API_URL,
     defaultProject: null,
   },
 });

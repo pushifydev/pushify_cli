@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import ora from 'ora';
-import { config } from '../config.js';
+import { config, DEFAULT_API_URL } from '../config.js';
 import { api } from '../api.js';
 
 interface LoginOptions {
@@ -98,6 +98,14 @@ async function browserLogin(apiUrl: string): Promise<void> {
 
 export async function loginCommand(options: LoginOptions): Promise<void> {
   const apiUrl = options.url || process.env.PUSHIFY_API_URL || config.get('apiUrl');
+
+  // A previously saved custom URL (self-hosted or dev) silently redirecting the
+  // login is surprising — surface it and say how to get back to the default.
+  if (!options.url && !process.env.PUSHIFY_API_URL && apiUrl !== DEFAULT_API_URL) {
+    console.log(chalk.yellow(`Using stored API URL: ${apiUrl}`));
+    console.log(chalk.gray(`Pass --url ${DEFAULT_API_URL} to switch back to the default.`));
+    console.log('');
+  }
 
   // If --key flag provided, use direct API key login
   const apiKey = options.key || process.env.PUSHIFY_API_KEY;
