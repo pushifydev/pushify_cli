@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.2.0-beta.2] - 2026-07-20
+## [1.2.0] - 2026-07-20
 
 ### Added
 - **`pushify link <project>` / `unlink`** — link a directory to a project (`.pushify` file, auto-added to `.gitignore`); every command then works with no project argument, resolving explicit arg → link file (searched up parent dirs, git-style) → default project. Used consistently by deploy, logs, status, env and open.
@@ -14,5 +14,5 @@
 - **`pushify env push [project]`** — upsert variables from a local `.env` to the project, with a dry-run preview by default and `--yes` to apply. Existing keys are overwritten; keys missing from the file are kept. Comments, blank lines and quoted values are handled.
 - **`pushify open [project]`** (alias `o`) — open the project's primary domain in the browser.
 
-## [0.2.0-beta.1]
-- Initial release: login/logout, projects, deploy, logs (`--follow`), status, whoami.
+## [1.1.3 and earlier]
+- Initial releases: login/logout, projects, deploy, logs (`--follow`), status, whoami.
