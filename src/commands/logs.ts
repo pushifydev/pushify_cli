@@ -8,6 +8,7 @@ interface LogsOptions {
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const TERMINAL_STATUSES = ['running', 'failed', 'stopped', 'cancelled'];
 
 export async function logsCommand(target: string | undefined, options: LogsOptions): Promise<void> {
   requireAuth();
@@ -51,6 +52,9 @@ export async function logsCommand(target: string | undefined, options: LogsOptio
 
   const spinner = ora('Fetching deployment logs...').start();
 
+  let status: string;
+  let printedLength: number;
+
   try {
     const logsData = await api.getDeploymentLogs(foundProjectId, deploymentId);
     spinner.stop();
@@ -76,10 +80,8 @@ export async function logsCommand(target: string | undefined, options: LogsOptio
     console.log('');
     console.log(chalk.gray('─'.repeat(60)));
 
-    if (options.follow && !['running', 'failed', 'stopped', 'cancelled'].includes(logsData.status)) {
-      console.log('');
-      await followLogs(foundProjectId, deploymentId);
-    }
+    status = logsData.status;
+    printedLength = (logsData.logs || '').length;
   } catch (error) {
     spinner.fail('Failed to fetch logs');
     if (error instanceof Error) {
@@ -87,12 +89,31 @@ export async function logsCommand(target: string | undefined, options: LogsOptio
     }
     process.exit(1);
   }
+
+  if (!options.follow) return;
+
+  // Still building/deploying: poll the build log until the deployment settles
+  if (!TERMINAL_STATUSES.includes(status)) {
+    console.log('');
+    status = await followBuildLogs(foundProjectId, deploymentId, printedLength);
+  }
+
+  // Only a running deployment has a container whose output we can follow
+  if (status !== 'running') {
+    console.log('');
+    console.log(chalk.yellow(`Deployment is ${formatStatus(status)} — there is no running container to follow.`));
+    console.log(chalk.gray('The build log above is complete.'));
+    return;
+  }
+
+  console.log('');
+  await followRuntimeLogs(foundProjectId, deploymentId);
 }
 
-async function followLogs(projectId: string, deploymentId: string): Promise<void> {
-  const spinner = ora('Following logs...').start();
-  let lastLogLength = 0;
-  const terminalStatuses = ['running', 'failed', 'stopped', 'cancelled'];
+/** Poll the build log until the deployment reaches a terminal status; returns that status. */
+async function followBuildLogs(projectId: string, deploymentId: string, alreadyPrinted: number): Promise<string> {
+  const spinner = ora('Following build logs...').start();
+  let lastLogLength = alreadyPrinted;
 
   while (true) {
     try {
@@ -110,24 +131,83 @@ async function followLogs(projectId: string, deploymentId: string): Promise<void
 
         lastLogLength = currentLogs.length;
 
-        if (!terminalStatuses.includes(logsData.status)) {
-          spinner.start('Following logs...');
+        if (!TERMINAL_STATUSES.includes(logsData.status)) {
+          spinner.start('Following build logs...');
         }
       }
 
-      if (terminalStatuses.includes(logsData.status)) {
+      if (TERMINAL_STATUSES.includes(logsData.status)) {
         spinner.stop();
         console.log('');
         console.log(chalk.gray('─'.repeat(60)));
         console.log(`Final status: ${formatStatus(logsData.status)}`);
-        break;
+        return logsData.status;
       }
 
       await new Promise(resolve => setTimeout(resolve, 1000));
     } catch (error) {
-      spinner.fail('Error following logs');
-      break;
+      spinner.fail('Error following build logs');
+      throw error;
     }
+  }
+}
+
+/** Stream the running container's output over SSE until Ctrl-C or the server ends the stream. */
+async function followRuntimeLogs(projectId: string, deploymentId: string): Promise<void> {
+  const spinner = ora('Connecting to container...').start();
+  const controller = new AbortController();
+  const stop = () => controller.abort();
+  process.once('SIGINT', stop);
+
+  try {
+    await api.streamContainerLogs(
+      projectId,
+      deploymentId,
+      (event) => {
+        switch (event.type) {
+          case 'connected':
+            spinner.stop();
+            console.log(chalk.bold('Runtime Logs'));
+            console.log(
+              chalk.gray(
+                `Container: ${event.containerName}${event.remote ? ' (remote)' : ''} — last 100 lines, then live. Ctrl-C to stop.`
+              )
+            );
+            console.log('');
+            console.log(chalk.gray('─'.repeat(60)));
+            console.log('');
+            break;
+          case 'log':
+            if (event.message !== undefined) console.log(formatLogLine(event.message));
+            break;
+          case 'error':
+            spinner.stop();
+            console.log(chalk.red(`Stream error: ${event.message || 'Unknown error'}`));
+            break;
+          case 'end':
+            spinner.stop();
+            console.log('');
+            console.log(chalk.gray('Log stream ended (container stopped or restarted). Re-run to reconnect.'));
+            break;
+          case 'ping':
+            break;
+        }
+      },
+      { signal: controller.signal }
+    );
+  } catch (error) {
+    spinner.stop();
+    if (!controller.signal.aborted) {
+      console.log(chalk.red('Failed to follow runtime logs'));
+      throw error;
+    }
+  } finally {
+    process.off('SIGINT', stop);
+  }
+
+  if (controller.signal.aborted) {
+    console.log('');
+    console.log(chalk.gray('Stopped following.'));
   }
 }
 

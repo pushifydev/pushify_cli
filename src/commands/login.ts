@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import ora from 'ora';
-import { config, DEFAULT_API_URL } from '../config.js';
+import { config, DEFAULT_API_URL, getDashboardUrl } from '../config.js';
 import { api } from '../api.js';
 
 interface LoginOptions {
@@ -33,11 +33,7 @@ async function browserLogin(apiUrl: string): Promise<void> {
     const { code } = await response.json();
 
     // 2. Build browser URL
-    const frontendUrl = apiUrl
-      .replace('/api/v1', '')
-      .replace('api.pushify.dev', 'pushify.dev')
-      .replace(':4000', ':3000');
-    const authUrl = `${frontendUrl}/cli/auth?code=${code}`;
+    const authUrl = `${getDashboardUrl(apiUrl)}/cli/auth?code=${code}`;
 
     spinner.stop();
 

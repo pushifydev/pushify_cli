@@ -34,8 +34,24 @@ export interface DeploymentLogs {
   status: string;
 }
 
+export interface CreateProjectInput {
+  name: string;
+  gitRepoUrl?: string;
+  gitBranch?: string;
+  gitProvider?: 'github' | 'gitlab';
+}
+
+/** One frame of the runtime (container) log SSE stream. */
+export interface ContainerLogEvent {
+  type: 'connected' | 'log' | 'error' | 'end' | 'ping';
+  message?: string;
+  containerName?: string;
+  live?: boolean;
+  remote?: boolean;
+}
+
 class ApiClient {
-  private getHeaders(): HeadersInit {
+  private getHeaders(): Record<string, string> {
     const apiKey = getApiKey();
     if (!apiKey) {
       throw new Error('Not authenticated. Run `pushify login` first.');
@@ -93,6 +109,11 @@ class ApiClient {
     return projects.find(p => p.slug === slug || p.name.toLowerCase() === slug.toLowerCase()) || null;
   }
 
+  async createProject(input: CreateProjectInput): Promise<Project> {
+    const response = await this.request<{ data: Project; message: string }>('POST', '/projects', input);
+    return response.data;
+  }
+
   // Environment variables
   async getEnvVars(projectId: string): Promise<Array<{ key: string; value: string }>> {
     const response = await this.request<{ data: Array<{ key: string; value: string }> }>(
@@ -146,6 +167,70 @@ class ApiClient {
       `/projects/${projectId}/deployments/${deploymentId}/logs`
     );
     return response.data;
+  }
+
+  /**
+   * Follow the runtime (container) logs of a deployment over SSE — the same
+   * endpoint and frame format the dashboard uses. Calls `onEvent` for every
+   * frame until the server ends the stream or `signal` aborts.
+   */
+  async streamContainerLogs(
+    projectId: string,
+    deploymentId: string,
+    onEvent: (event: ContainerLogEvent) => void,
+    options: { tail?: number; signal?: AbortSignal } = {}
+  ): Promise<void> {
+    const apiUrl = getApiUrl();
+    const query = options.tail ? `?tail=${options.tail}` : '';
+    const url = `${apiUrl}/projects/${projectId}/deployments/${deploymentId}/container-logs/stream${query}`;
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        headers: { ...this.getHeaders(), Accept: 'text/event-stream' },
+        signal: options.signal,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('ECONNREFUSED')) {
+        throw new Error(`Cannot connect to API at ${apiUrl}. Is the server running?`);
+      }
+      throw error;
+    }
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      const message =
+        (typeof data.error === 'string' ? data.error : data.error?.message) ||
+        data.message ||
+        `Request failed (HTTP ${response.status})`;
+      throw new Error(message);
+    }
+    if (!response.body) {
+      throw new Error('No response body');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // Frames are separated by a blank line; keep any trailing partial frame
+      const frames = buffer.split('\n\n');
+      buffer = frames.pop() ?? '';
+      for (const frame of frames) {
+        const line = frame.split('\n').find((l) => l.startsWith('data: '));
+        if (!line) continue;
+        try {
+          onEvent(JSON.parse(line.slice(6)) as ContainerLogEvent);
+        } catch {
+          // ignore malformed frames
+        }
+      }
+    }
   }
 
   // Validation

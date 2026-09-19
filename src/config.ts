@@ -37,3 +37,14 @@ export function getApiUrl(): string {
 export function isAuthenticated(): boolean {
   return getApiKey() !== null;
 }
+
+/**
+ * Web dashboard that pairs with an API URL: api.pushify.dev → pushify.dev and
+ * :4000 → :3000 for local dev. Shared by the browser login and `init`.
+ */
+export function getDashboardUrl(apiUrl: string = getApiUrl()): string {
+  return apiUrl
+    .replace('/api/v1', '')
+    .replace('api.pushify.dev', 'pushify.dev')
+    .replace(':4000', ':3000');
+}

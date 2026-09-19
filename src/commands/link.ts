@@ -1,21 +1,16 @@
 import { existsSync, readFileSync, unlinkSync, writeFileSync, appendFileSync } from 'node:fs';
 import path from 'node:path';
 import chalk from 'chalk';
-import { api } from '../api.js';
+import { api, type Project } from '../api.js';
 import { LINK_FILE, requireAuth } from '../resolve.js';
 
-/** Link the current directory to a project so commands need no [project] argument. */
-export async function linkCommand(projectArg: string): Promise<void> {
-  requireAuth();
+/** Resolve a project by slug, name or ID; null when nothing matches. */
+export async function findProject(projectArg: string): Promise<Project | null> {
+  return (await api.getProjectBySlug(projectArg)) ?? (await api.getProject(projectArg).catch(() => null));
+}
 
-  const project =
-    (await api.getProjectBySlug(projectArg)) ??
-    (await api.getProject(projectArg).catch(() => null));
-  if (!project) {
-    console.log(chalk.red(`Project not found: ${projectArg}`));
-    process.exit(1);
-  }
-
+/** Write the .pushify link file for `project` in the current directory and keep it out of git. */
+export function writeLink(project: Project): void {
   const file = path.join(process.cwd(), LINK_FILE);
   writeFileSync(file, JSON.stringify({ projectId: project.id, slug: project.slug }, null, 2) + '\n');
   console.log(`${chalk.green('✓')} Linked to ${chalk.bold(project.name)} (${project.slug})`);
@@ -31,6 +26,19 @@ export async function linkCommand(projectArg: string): Promise<void> {
   } else {
     console.log(chalk.gray(`Tip: add ${LINK_FILE} to your .gitignore`));
   }
+}
+
+/** Link the current directory to a project so commands need no [project] argument. */
+export async function linkCommand(projectArg: string): Promise<void> {
+  requireAuth();
+
+  const project = await findProject(projectArg);
+  if (!project) {
+    console.log(chalk.red(`Project not found: ${projectArg}`));
+    process.exit(1);
+  }
+
+  writeLink(project);
 }
 
 export function unlinkCommand(): void {

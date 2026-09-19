@@ -7,29 +7,37 @@ import { isAuthenticated, config } from '../config.js';
 interface DeployOptions {
   branch?: string;
   wait?: boolean;
+  prod?: boolean;
 }
 
 export async function deployCommand(projectArg: string | undefined, options: DeployOptions): Promise<void> {
   requireAuth();
 
+  if (options.prod && options.branch) {
+    console.log(chalk.red('Use either --prod or --branch, not both.'));
+    process.exit(1);
+  }
+
   const resolved = await resolveProject(projectArg);
   const projectId: string = resolved.id;
   const projectName: string = resolved.name;
+
+  // --prod deploys the project's production branch — the same branch a bare
+  // `pushify deploy` uses, just spelled out.
+  const branch = options.prod ? resolved.gitBranch ?? undefined : options.branch;
 
   // Create deployment
   const spinner = ora(`Triggering deployment for ${chalk.bold(projectName)}...`).start();
 
   try {
-    const deployment = await api.createDeployment(projectId, {
-      branch: options.branch,
-    });
+    const deployment = await api.createDeployment(projectId, { branch });
 
     spinner.succeed(`Deployment triggered!`);
     console.log('');
     console.log(`  ${chalk.gray('Deployment ID:')} ${deployment.id}`);
     console.log(`  ${chalk.gray('Status:')} ${formatStatus(deployment.status)}`);
     if (deployment.branch) {
-      console.log(`  ${chalk.gray('Branch:')} ${deployment.branch}`);
+      console.log(`  ${chalk.gray('Branch:')} ${deployment.branch}${options.prod ? chalk.gray(' (production)') : ''}`);
     }
     console.log('');
 

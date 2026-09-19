@@ -12,6 +12,8 @@ import { logsCommand } from './commands/logs.js';
 import { statusCommand } from './commands/status.js';
 import { envPullCommand, envPushCommand, openCommand } from './commands/env.js';
 import { linkCommand, unlinkCommand } from './commands/link.js';
+import { initCommand } from './commands/init.js';
+import { configSetCommand, configGetCommand, configUnsetCommand, configListCommand } from './commands/config.js';
 
 const { version } = createRequire(import.meta.url)('../package.json') as { version: string };
 
@@ -53,9 +55,11 @@ program
     `
 Examples:
   $ pushify login --key pk_live_xxx
-  $ pushify link my-app            ${chalk.gray('# link this directory once')}
+  $ pushify init                   ${chalk.gray('# create or link a project for this directory')}
+  $ pushify link my-app            ${chalk.gray('# or link an existing one directly')}
   $ pushify deploy --wait          ${chalk.gray('# then commands need no project arg')}
-  $ pushify logs -f                ${chalk.gray('# follow the latest deployment')}
+  $ pushify deploy --prod          ${chalk.gray('# deploy the production branch')}
+  $ pushify logs -f                ${chalk.gray('# follow build, then runtime logs')}
   $ pushify env pull               ${chalk.gray('# download env vars to .env')}
   $ pushify open
 
@@ -70,6 +74,14 @@ program
   .action(run(loginCommand));
 
 program.command('logout').description('Remove stored credentials').action(run(logoutCommand));
+
+program
+  .command('init')
+  .description('Set up this directory: log in, then create or link a project')
+  .option('-p, --project <project>', 'Link an existing project (ID or slug) instead of asking')
+  .option('-n, --name <name>', 'Name for the new project (default: directory name)')
+  .option('-y, --yes', 'No prompts: create a project from the directory name and git remote')
+  .action(run(initCommand));
 
 program
   .command('link <project>')
@@ -93,6 +105,7 @@ program
   .alias('d')
   .description('Trigger a deployment (uses the linked project when omitted)')
   .option('-b, --branch <branch>', 'Branch to deploy')
+  .option('--prod', "Deploy the project's production branch (its default branch; same as omitting -b)")
   .option('-w, --wait', 'Wait for deployment to complete')
   .action(run(deployCommand));
 
@@ -100,7 +113,7 @@ program
   .command('logs [target]')
   .alias('l')
   .description('Show logs for a deployment ID, or the latest deployment of a project')
-  .option('-f, --follow', 'Follow logs in real-time')
+  .option('-f, --follow', 'Follow the build log, then the running container output (Ctrl-C to stop)')
   .action(run(logsCommand));
 
 program
@@ -128,6 +141,15 @@ program
   .alias('o')
   .description("Open the project's primary domain in your browser")
   .action(run(openCommand));
+
+const cfg = program.command('config').description('Read and write CLI settings (default-project)');
+cfg
+  .command('set <key> <value>')
+  .description('Set a key, e.g. default-project <project>')
+  .action(run(configSetCommand));
+cfg.command('get <key>').description('Print a key').action(run(configGetCommand));
+cfg.command('unset <key>').description('Remove a key').action(run(configUnsetCommand));
+cfg.command('list').description('Show all settings (tokens masked)').action(run(configListCommand));
 
 program
   .command('whoami')

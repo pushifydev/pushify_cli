@@ -21,16 +21,31 @@ npx pushify-cli <command>
 pushify login --key pk_live_YOUR_API_KEY
 ```
 
-3. Deploy your project:
+3. Set up your project directory and deploy:
 ```bash
-pushify deploy my-project
+cd my-app
+pushify init            # create a project (or pick an existing one) and link this directory
+pushify deploy --wait
 ```
 
 ## Commands
 
-### Link a directory (recommended)
+### Set up a directory
 
-Link your repo directory to a project once — every command then works without a project argument:
+`pushify init` is the first-time setup for a repo: it logs you in if needed, then either creates a
+new project (name defaults to the directory name, repository and branch to the `origin` remote and
+current branch) or links an existing one, and writes `.pushify`.
+
+```bash
+pushify init                         # interactive
+pushify init --yes                   # no prompts: create from directory name + git remote
+pushify init --yes --name my-app     # ...with an explicit name
+pushify init --project my-app        # link an existing project (ID or slug) instead
+```
+
+### Link a directory
+
+Already have a project? Link the directory once — every command then works without a project argument:
 
 ```bash
 pushify link my-project     # writes .pushify (auto-added to .gitignore)
@@ -75,6 +90,9 @@ pushify projects --json
 # Deploy a project
 pushify deploy my-project
 
+# Deploy the production branch (the project's default branch — same as omitting --branch)
+pushify deploy my-project --prod
+
 # Deploy a specific branch
 pushify deploy my-project --branch feature/new-feature
 
@@ -98,20 +116,18 @@ pushify status
 ### Logs
 
 ```bash
-# View deployment logs
 # Logs of a specific deployment, or the latest deployment of a project
 pushify logs <deployment-id>
-pushify logs my-project -f
+pushify logs my-project
 
-# Follow logs in real-time
+# Follow: streams the build log while the deployment is building, then the
+# running container's output live once it is up. Ctrl-C to stop.
+pushify logs my-project -f
 pushify logs <deployment-id> --follow
 ```
 
-## Environment Variables
-
-Instead of using `pushify login`, you can set environment variables:
-
-```
+`--follow` on a failed, stopped or cancelled deployment prints the build log and explains why
+there is nothing to follow.
 
 ### Environment variables
 
@@ -138,7 +154,23 @@ The pulled file is written with `chmod 600` — keep it in `.gitignore`.
 # Open the project's primary domain
 pushify open my-project
 ```
-bash
+
+### CLI settings
+
+A default project is used when a command has no project argument and the directory is not linked.
+
+```bash
+pushify config set default-project my-project   # accepts an ID or slug
+pushify config get default-project
+pushify config unset default-project
+pushify config list                              # apiUrl, defaultProject, masked apiKey
+```
+
+## Environment Variables
+
+Instead of using `pushify login`, you can set environment variables:
+
+```bash
 export PUSHIFY_API_KEY=pk_live_YOUR_API_KEY
 export PUSHIFY_API_URL=https://api.pushify.dev/api/v1  # optional
 ```
