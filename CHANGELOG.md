@@ -2,7 +2,10 @@
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-27
+
 ### Added
+- **`pushify deploy ./site`** — publish a folder as a website, no Git and no build: the files are uploaded (hidden files left out; `index.html` required; up to 2,000 files / 50 MB) and served on a `*.pushify.dev` address or your server. The first run creates the site and links the directory; later runs upload a new version. `--name` names a new site, `--project` updates a given one, `--wait` waits and prints the live URL. Needs Pushify backend 0.2.0-beta.72.
 - **`pushify init`** — first-time setup for a directory: logs in if needed, then creates a new project (name from the directory, repository/branch from the `origin` remote) or links an existing one, writes `.pushify` and prints the dashboard URL. `--yes`, `--name`, `--project` for non-interactive use.
 - **`pushify deploy --prod`** — deploy the project's production (default) branch; the documented spelling of a bare `pushify deploy`.
 - **`pushify config set|get|unset default-project` / `config list`** — the default project `resolve` already honoured can now actually be set; `list` shows apiUrl, defaultProject and a masked API key.
