@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/pushifydev/pushify_cli/security/policy
+    about: Please do not open a public issue. Follow the security policy to report it privately.
+  - name: Questions and support
+    url: https://pushify.dev/contact
+    about: Account, billing or deployment help — email support@pushify.dev.
+  - name: Documentation
+    url: https://pushify.dev/docs
+    about: API reference and guides.

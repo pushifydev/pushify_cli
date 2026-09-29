@@ -103,6 +103,22 @@ pushify deploy my-project --wait
 pushify d my-project
 ```
 
+### Publish a folder (no Git)
+
+```bash
+# Upload a folder of HTML, CSS and JS as a website — it needs an index.html at its top level
+pushify deploy ./site --wait
+
+# The first run creates the site and links this directory; running it again uploads a new version
+pushify deploy ./site
+
+# Name a new site, or update a specific one
+pushify deploy ./dist --name marketing
+pushify deploy ./dist --project marketing
+```
+
+Hidden files (`.git`, `.env`, …) are never uploaded. A site can have up to 2,000 files and 50 MB.
+
 ### Status
 
 ```bash

@@ -10,6 +10,8 @@ export interface Project {
   gitBranch: string | null;
   createdAt: string;
   updatedAt: string;
+  settings?: Record<string, unknown> | null;
+  productionUrl?: string | null;
   domains?: Array<{
     id: string;
     domain: string;
@@ -39,6 +41,13 @@ export interface CreateProjectInput {
   gitRepoUrl?: string;
   gitBranch?: string;
   gitProvider?: 'github' | 'gitlab';
+}
+
+export interface StaticUploadResult {
+  project?: { id: string; name: string; slug: string };
+  deployment: { id: string; status: string };
+  fileCount: number;
+  sizeBytes: number;
 }
 
 /** One frame of the runtime (container) log SSE stream. */
@@ -112,6 +121,32 @@ class ApiClient {
   async createProject(input: CreateProjectInput): Promise<Project> {
     const response = await this.request<{ data: Project; message: string }>('POST', '/projects', input);
     return response.data;
+  }
+
+  /**
+   * Upload a static site: a new project (`POST /static-sites`) or a new version of one
+   * (`POST /static-sites/:id/versions`). The form carries `files`, each named by its path.
+   */
+  async uploadStaticSite(form: FormData, projectId?: string): Promise<StaticUploadResult> {
+    const apiUrl = getApiUrl();
+    const path = projectId ? `/static-sites/${projectId}/versions` : '/static-sites';
+    // No Content-Type: fetch sets the multipart boundary itself.
+    const { 'Content-Type': _json, ...headers } = this.getHeaders();
+    let response: Response;
+    try {
+      response = await fetch(`${apiUrl}${path}`, { method: 'POST', headers, body: form });
+    } catch (error) {
+      const cause = (error as { cause?: { code?: string } }).cause;
+      if (error instanceof Error && (error.message.includes('ECONNREFUSED') || cause?.code === 'ECONNREFUSED')) {
+        throw new Error(`Cannot connect to API at ${apiUrl}. Is the server running?`);
+      }
+      throw error;
+    }
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error?.message || data.message || `Upload failed (${response.status})`);
+    }
+    return data.data as StaticUploadResult;
   }
 
   // Environment variables

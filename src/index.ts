@@ -101,12 +101,14 @@ program
   .action(run(projectsCommand));
 
 program
-  .command('deploy [project]')
+  .command('deploy [project|dir]')
   .alias('d')
-  .description('Trigger a deployment (uses the linked project when omitted)')
+  .description('Trigger a deployment (uses the linked project when omitted), or publish a folder: pushify deploy ./site')
   .option('-b, --branch <branch>', 'Branch to deploy')
   .option('--prod', "Deploy the project's production branch (its default branch; same as omitting -b)")
   .option('-w, --wait', 'Wait for deployment to complete')
+  .option('-p, --project <project>', 'Folder upload: the site to update (default: the linked one, else a new site)')
+  .option('-n, --name <name>', 'Folder upload: name of a new site (default: the folder name)')
   .action(run(deployCommand));
 
 program

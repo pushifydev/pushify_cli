@@ -3,15 +3,28 @@ import ora from 'ora';
 import { requireAuth, resolveProject } from '../resolve.js';
 import { api, type Deployment } from '../api.js';
 import { isAuthenticated, config } from '../config.js';
+import { deployStaticCommand, isDirectory } from './deploy-static.js';
 
 interface DeployOptions {
   branch?: string;
   wait?: boolean;
   prod?: boolean;
+  project?: string;
+  name?: string;
 }
 
 export async function deployCommand(projectArg: string | undefined, options: DeployOptions): Promise<void> {
   requireAuth();
+
+  // `pushify deploy ./site`: a folder is published as a static site (upload, no Git).
+  if (isDirectory(projectArg)) {
+    if (options.branch || options.prod) {
+      console.log(chalk.red('--branch and --prod are for Git projects; a folder is uploaded as it is.'));
+      process.exit(1);
+    }
+    await deployStaticCommand(projectArg, { project: options.project, name: options.name, wait: options.wait });
+    return;
+  }
 
   if (options.prod && options.branch) {
     console.log(chalk.red('Use either --prod or --branch, not both.'));
