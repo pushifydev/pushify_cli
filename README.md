@@ -14,19 +14,16 @@ npx pushify-cli <command>
 
 ## Quick Start
 
-1. Get your API key from [Pushify Dashboard](https://pushify.dev/dashboard/settings)
-
-2. Login with your API key:
 ```bash
-pushify login --key pk_live_YOUR_API_KEY
-```
-
-3. Set up your project directory and deploy:
-```bash
+npm install -g pushify-cli
 cd my-app
-pushify init            # create a project (or pick an existing one) and link this directory
+pushify init            # logs you in through the browser if needed, then creates or links a project
 pushify deploy --wait
 ```
+
+`pushify init` opens the browser to approve the login (it prints a verification code and a link in
+case the browser does not open). For CI, use an API key instead — see
+[Environment Variables](#environment-variables).
 
 ## Commands
 
@@ -61,11 +58,14 @@ Resolution order everywhere: explicit argument → `.pushify` in the directory (
 ### Authentication
 
 ```bash
-# Login with API key
+# Log in through the browser (prints a verification code to match)
+pushify login
+
+# Log in with an API key instead (from Dashboard → Settings → API keys)
 pushify login --key pk_live_xxx
 
-# Login with custom API URL (for self-hosted)
-pushify login --key pk_live_xxx --url http://localhost:4000/api/v1
+# Log in to a self-hosted instance
+pushify login --key pk_live_xxx --url https://api.your-domain.com/api/v1
 
 # Logout
 pushify logout
