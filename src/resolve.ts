@@ -36,7 +36,7 @@ export function readLinkFile(cwd = process.cwd()): LinkFile | null {
 export function requireAuth(): void {
   if (!isAuthenticated()) {
     console.log(chalk.red('Not authenticated.'));
-    console.log(`Run ${chalk.cyan('pushify login --key pk_live_...')} or set ${chalk.cyan('PUSHIFY_API_KEY')}.`);
+    console.log(`Run ${chalk.cyan('pushify login')} or set ${chalk.cyan('PUSHIFY_API_KEY')}.`);
     process.exit(1);
   }
 }

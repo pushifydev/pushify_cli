@@ -54,7 +54,7 @@ program
     'after',
     `
 Examples:
-  $ pushify login --key pk_live_xxx
+  $ pushify login                  ${chalk.gray('# approve in the browser (CI: --key or PUSHIFY_API_KEY)')}
   $ pushify init                   ${chalk.gray('# create or link a project for this directory')}
   $ pushify link my-app            ${chalk.gray('# or link an existing one directly')}
   $ pushify deploy --wait          ${chalk.gray('# then commands need no project arg')}
@@ -68,7 +68,7 @@ Docs: https://pushify.dev/docs`
 
 program
   .command('login')
-  .description('Authenticate with your API key')
+  .description('Log in through the browser, or with an API key (--key)')
   .option('-k, --key <key>', 'API key (or set PUSHIFY_API_KEY env var)')
   .option('-u, --url <url>', 'API URL (default: https://api.pushify.dev/api/v1)')
   .action(run(loginCommand));
