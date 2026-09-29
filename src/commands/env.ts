@@ -4,6 +4,27 @@ import ora from 'ora';
 import { api } from '../api.js';
 import { requireAuth, resolveProject } from '../resolve.js';
 
+/** The server's rule for variable names (envvar.service): uppercase letters, digits and _, starting with a letter. */
+export const ENV_KEY_RULE = /^[A-Z][A-Z0-9_]*$/;
+
+/** What `env pull` writes for a secret: the first and last two characters around ****, or **** alone. */
+export const MASKED_VALUE = /^(?:[\s\S]{2}\*{4}[\s\S]{2}|\*{4})$/;
+
+/**
+ * Split parsed variables into what can be sent, names the server would refuse, and values that
+ * are masked secrets from `env pull` — sending those would overwrite the real secret with the mask.
+ */
+export function checkPushable(vars: Array<{ key: string; value: string }>): {
+  send: Array<{ key: string; value: string }>;
+  invalidKeys: string[];
+  masked: string[];
+} {
+  const invalidKeys = vars.filter((v) => !ENV_KEY_RULE.test(v.key)).map((v) => v.key);
+  const masked = vars.filter((v) => ENV_KEY_RULE.test(v.key) && MASKED_VALUE.test(v.value)).map((v) => v.key);
+  const send = vars.filter((v) => ENV_KEY_RULE.test(v.key) && !MASKED_VALUE.test(v.value));
+  return { send, invalidKeys, masked };
+}
+
 /** Parse a .env file into key/value pairs. Ignores comments and blank lines. */
 export function parseDotenv(content: string): Array<{ key: string; value: string }> {
   const vars: Array<{ key: string; value: string }> = [];
@@ -73,10 +94,27 @@ export async function envPushCommand(
     console.log(chalk.red(`${file} not found.`));
     process.exit(1);
   }
-  const vars = parseDotenv(readFileSync(file, 'utf-8'));
-  if (vars.length === 0) {
+  const parsed = parseDotenv(readFileSync(file, 'utf-8'));
+  if (parsed.length === 0) {
     console.log(chalk.yellow(`${file} contains no variables.`));
     process.exit(1);
+  }
+
+  const { send: vars, invalidKeys, masked } = checkPushable(parsed);
+  if (invalidKeys.length > 0) {
+    console.log(chalk.red('These names are not allowed:'));
+    for (const key of invalidKeys) console.log(chalk.red(`  ${key}`) + chalk.gray(`  → ${key.toUpperCase()}?`));
+    console.log('Variable names must start with an uppercase letter and use only A–Z, 0–9 and _ (the same rule as the dashboard).');
+    console.log(`Rename them in ${file} and run the command again. Nothing was sent.`);
+    process.exit(1);
+  }
+  if (masked.length > 0) {
+    console.log(chalk.yellow(`Skipping ${masked.length} masked secret(s) — their values are the ****-masked copies from \`env pull\`, and sending them would replace the real secret:`));
+    for (const key of masked) console.log(chalk.gray(`  ${key}`));
+  }
+  if (vars.length === 0) {
+    console.log(chalk.yellow('Nothing to push.'));
+    process.exit(0);
   }
 
   const { id, name } = await resolveProject(projectArg);
