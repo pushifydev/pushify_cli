@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-09-29
+
+### Added
+- `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1), `SECURITY.md` (private reporting, 72h acknowledgement) and an issue template config that routes security reports and support questions away from public issues.
+
 ## [1.3.0] - 2026-09-27
 
 ### Added
