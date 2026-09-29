@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-09-29
+
+### Changed
+- **README and help lead with browser login.** Quick start is now `npm i -g pushify-cli`, `pushify init` (logs in through the browser if needed) and `pushify deploy --wait`; API keys are documented for CI. `pushify --help` and the "Not authenticated" hint suggest `pushify login`.
+
 ## [1.3.1] - 2026-09-29
 
 ### Added
