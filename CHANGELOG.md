@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.3.3] - 2026-09-30
+
+### Fixed
+- **`pushify env push` refuses names the server would reject.** Variable names must start with an uppercase letter and use only A–Z, 0–9 and `_`. Lowercase names used to be sent and rejected by the server, or dropped without a word. Now the command lists them, suggests the uppercase name, and sends nothing.
+- **`pushify env push` skips masked secrets.** It no longer sends the `****`-masked values that `pushify env pull` writes for secrets, so pushing a pulled file back cannot replace a real secret with its mask. The skipped keys are listed.
+
+### Added
+- `npm test` (node's test runner through tsx).
+
 ## [1.3.2] - 2026-09-29
 
 ### Changed
